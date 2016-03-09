@@ -10,19 +10,43 @@ char str_aperture[20];
 char str_focus[20];
 char str_hyper[20];
 char str_mm[4];
+char str_fstop[5];
+double apertures[] = {
+  1.0d,
+  1.4d,
+  1.8d,
+  2.0d,
+  2.8d,
+  4.0d,
+  5.6d,
+  8.0d,
+  11.0d,
+  16.0d,
+  22.0d
+};
+int aperture_elements = 11; 
+int aperturepos = 5; // f/4.0 as default
+int mm = 50; // default 50 mm focal lenght
 
-int mm = 50;
+double cof = 0.03; // circle of confusion, set for 35mm full-frame -> TODO change through setting button
+
+double calcHyperFocalDistance(double f, int mm) {
+  return (((double)(mm*mm)/(f*cof))+(double)mm)/(double)1000;
+}
 
 void refreshText() {
   strcpy(str_aperture, "");
-  strcat(str_aperture, "f(");
+  strcat(str_aperture, "f-stop(");
   if (aperture_plus) {
     strcat(str_aperture, "+): ");
   } else {
-    strcat(str_aperture, "-): ");
+    strcat(str_aperture, "-): f/");
   }
-  text_layer_set_text(text_layer_aperture, str_aperture);
   
+  snprintf(str_fstop, sizeof(str_fstop), "%d.%1d", (int)apertures[aperturepos], (int)(apertures[aperturepos]*10 - (int)apertures[aperturepos]*10));
+  strcat(str_aperture, str_fstop);  
+  text_layer_set_text(text_layer_aperture, str_aperture);
+
   strcpy(str_focus, "");
   strcat(str_focus, "mm(");
   if (focus_plus) {
@@ -34,15 +58,29 @@ void refreshText() {
   strcat(str_focus, str_mm);
   text_layer_set_text(text_layer_focus, str_focus);
   
-  text_layer_set_text(text_layer_hyper, "hyper");
+  double distance = calcHyperFocalDistance(apertures[aperturepos], mm);
+  snprintf(str_hyper, sizeof(str_hyper), "%d.%1d m", (int)distance, (int)(distance*10 - (int)distance*10));
+  text_layer_set_text(text_layer_hyper, str_hyper);
 }
-
 
 void select_click_handler(ClickRecognizerRef recognizer, void *context) {
   refreshText();
 }
 
 void up_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (aperture_plus) {
+    if (aperturepos == aperture_elements-1) {
+      aperturepos = 0;
+    } else {
+      aperturepos = aperturepos + 1;
+    }
+  } else {
+    if (aperturepos == 0) {
+      aperturepos = aperture_elements - 1;
+    } else {
+      aperturepos = aperturepos - 1;
+    }
+  }
   refreshText();
 }
 
@@ -85,24 +123,27 @@ static void click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, select_click_handler);
   window_single_click_subscribe(BUTTON_ID_UP, up_click_handler);
   window_single_click_subscribe(BUTTON_ID_DOWN, down_click_handler);
-  window_long_click_subscribe(BUTTON_ID_UP, 700, up_long_click_handler, up_long_click_release_handler);
-  window_long_click_subscribe(BUTTON_ID_DOWN, 700, down_long_click_handler, down_long_click_release_handler);
+  window_long_click_subscribe(BUTTON_ID_UP, 500, up_long_click_handler, up_long_click_release_handler);
+  window_long_click_subscribe(BUTTON_ID_DOWN, 500, down_long_click_handler, down_long_click_release_handler);
 }
 
 static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
-  text_layer_aperture = text_layer_create((GRect) { .origin = { 0, 20 }, .size = { bounds.size.w, 20 } });
+  text_layer_aperture = text_layer_create((GRect) { .origin = { 0, 10 }, .size = { bounds.size.w, 30 } });
   text_layer_set_text_alignment(text_layer_aperture, GTextAlignmentCenter);
+  text_layer_set_font(text_layer_aperture, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
   layer_add_child(window_layer, text_layer_get_layer(text_layer_aperture));
   
-  text_layer_hyper = text_layer_create((GRect) { .origin = { 0, 72 }, .size = { bounds.size.w, 20 } });
+  text_layer_hyper = text_layer_create((GRect) { .origin = { 0, 65 }, .size = { bounds.size.w, 30 } });
   text_layer_set_text_alignment(text_layer_hyper, GTextAlignmentCenter);
+  text_layer_set_font(text_layer_hyper, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
   layer_add_child(window_layer, text_layer_get_layer(text_layer_hyper));
   
-  text_layer_focus = text_layer_create((GRect) { .origin = { 0, 132 }, .size = { bounds.size.w, 20 } });
+  text_layer_focus = text_layer_create((GRect) { .origin = { 0, 120 }, .size = { bounds.size.w, 30 } });
   text_layer_set_text_alignment(text_layer_focus, GTextAlignmentCenter);
+  text_layer_set_font(text_layer_focus, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
   layer_add_child(window_layer, text_layer_get_layer(text_layer_focus));
   refreshText();
 }
