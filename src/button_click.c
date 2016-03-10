@@ -120,6 +120,8 @@ void down_click_handler(ClickRecognizerRef recognizer, void *context) {
   } else {
     if (mm <= 30) {
       mm = mm - 1;
+    } else if (mm > 110) {
+      mm = mm - 20;
     } else {
       mm = mm - 5;
     } 
